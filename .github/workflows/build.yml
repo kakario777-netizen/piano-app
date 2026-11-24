@@ -40,15 +40,19 @@ jobs:
       - name: Download instrument sounds
         run: |
           if [ "$(ls app/src/main/assets/sounds/*/ 2>/dev/null | wc -l)" -lt 300 ]; then ./download_sounds.sh; fi
+      # 예전 배포 분리 작업 때 생긴 builds 브랜치 정리 (없으면 그냥 넘어감)
+      - name: Clean up old builds branch
+        run: git push origin --delete builds 2>/dev/null || true
+      # SIGNING_KEY 시크릿 하나에 "비밀번호:키파일(base64)" 형태로 들어 있다
       - name: Restore signing key
         env:
-          SIGNING_KEY_BASE64: ${{ secrets.SIGNING_KEY_BASE64 }}
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
         run: |
-          if [ -z "$SIGNING_KEY_BASE64" ]; then echo "::error::SIGNING_KEY_BASE64 시크릿이 없습니다"; exit 1; fi
-          echo "$SIGNING_KEY_BASE64" | base64 -d > app/signing.jks
+          if [ -z "$SIGNING_KEY" ]; then echo "::error::SIGNING_KEY 시크릿이 없습니다"; exit 1; fi
+          echo "::add-mask::${SIGNING_KEY%%:*}"
+          echo "SIGNING_KEY_PASSWORD=${SIGNING_KEY%%:*}" >> "$GITHUB_ENV"
+          echo "${SIGNING_KEY#*:}" | base64 -d > app/signing.jks
       - name: Build
-        env:
-          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
         run: gradle assembleRelease --no-daemon
       - name: Rename APK
         run: cp app/build/outputs/apk/release/app-release.apk "piano-${APP_VERSION}.apk"

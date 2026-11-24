@@ -26,10 +26,20 @@ jobs:
         env:
           BUILD_NUMBER: ${{ github.run_number }}
         run: gradle assembleRelease --no-daemon
-      - name: Rename APK
-        run: cp app/build/outputs/apk/release/app-release.apk piano-v1.0.${{ github.run_number }}.apk
-      - uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v1.0.${{ github.run_number }}
-          name: 피아노 v1.0.${{ github.run_number }}
-          files: piano-v1.0.${{ github.run_number }}.apk
+      # 완성된 APK는 코드 저장소 안의 builds 브랜치에 최신본 하나만 둔다.
+      # (배포는 public 릴리스 저장소 piano-app-release 에서 한다)
+      - name: Push APK to builds branch
+        env:
+          VER: 1.0.${{ github.run_number }}
+        run: |
+          mkdir -p /tmp/out
+          cp app/build/outputs/apk/release/app-release.apk /tmp/out/piano-v$VER.apk
+          echo "$VER" > /tmp/out/VERSION
+          git log -1 --pretty=%s > /tmp/out/NOTES
+          cd /tmp/out
+          git init -q -b builds
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add -A
+          git commit -qm "build v$VER"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" builds

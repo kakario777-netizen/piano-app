@@ -3,3 +3,5 @@ build/
 app/build/
 app/src/main/assets/sounds/
 local.properties
+*.jks
+*.keystore
